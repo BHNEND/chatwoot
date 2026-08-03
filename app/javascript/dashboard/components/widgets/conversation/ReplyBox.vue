@@ -134,6 +134,7 @@ export default {
       toEmails: '',
       doAutoSaveDraft: () => {},
       showWhatsAppTemplatesModal: false,
+      requestContactInfoTemplatesOnly: false,
       showContentTemplatesModal: false,
       updateEditorSelectionWith: '',
       undefinedVariableMessage: '',
@@ -146,6 +147,7 @@ export default {
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
+      isRequestingContactInfo: false,
     };
   },
   computed: {
@@ -169,6 +171,39 @@ export default {
       const senderId = this.currentChat?.meta?.sender?.id;
       if (!senderId) return {};
       return this.$store.getters['contacts/getContact'](senderId);
+    },
+    contactInfoRequestCapability() {
+      return this.currentChat?.contact_info_request || {};
+    },
+    hasPendingContactInfoRequest() {
+      return (this.currentChat?.messages || []).some(message => {
+        const contactInfo =
+          message.content_attributes?.whatsapp_contact_info || {};
+        return (
+          contactInfo.type === 'request' &&
+          contactInfo.state === 'pending' &&
+          message.status !== 'failed'
+        );
+      });
+    },
+    showRequestContactInfo() {
+      return (
+        (this.contactInfoRequestCapability.available ||
+          this.contactInfoRequestCapability.reason === 'pending_request') &&
+        !this.isOnPrivateNote
+      );
+    },
+    isRequestContactInfoDisabled() {
+      return (
+        this.isRequestingContactInfo ||
+        this.hasPendingContactInfoRequest ||
+        this.contactInfoRequestCapability.reason === 'pending_request'
+      );
+    },
+    requestContactInfoTooltip() {
+      return this.hasPendingContactInfoRequest
+        ? this.$t('CONVERSATION.REQUEST_CONTACT_INFO.PENDING_ACTION')
+        : this.$t('CONVERSATION.REQUEST_CONTACT_INFO.ACTION');
     },
     shouldShowReplyToMessage() {
       return (
@@ -607,6 +642,25 @@ export default {
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
   },
   methods: {
+    async requestContactInfo() {
+      if (this.contactInfoRequestCapability.delivery_mode === 'template') {
+        this.requestContactInfoTemplatesOnly = true;
+        this.showWhatsAppTemplatesModal = true;
+        return;
+      }
+
+      this.isRequestingContactInfo = true;
+      try {
+        await this.$store.dispatch('requestContactInfo', this.currentChat.id);
+        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+        useAlert(errorMessage);
+      } finally {
+        this.isRequestingContactInfo = false;
+      }
+    },
     getDraftKey(
       conversationId = this.conversationIdByRoute,
       replyType = this.effectiveReplyMode
@@ -851,10 +905,12 @@ export default {
       }
     },
     openWhatsappTemplateModal() {
+      this.requestContactInfoTemplatesOnly = false;
       this.showWhatsAppTemplatesModal = true;
     },
     hideWhatsappTemplatesModal() {
       this.showWhatsAppTemplatesModal = false;
+      this.requestContactInfoTemplatesOnly = false;
     },
     openContentTemplateModal() {
       this.showContentTemplatesModal = true;
@@ -1508,6 +1564,10 @@ export default {
         :is-send-disabled="isReplyButtonDisabled"
         :is-note="isPrivate"
         :is-editor-disabled="isEditorDisabled"
+        :show-request-contact-info="showRequestContactInfo"
+        :is-request-contact-info-disabled="isRequestContactInfoDisabled"
+        :is-requesting-contact-info="isRequestingContactInfo"
+        :request-contact-info-tooltip="requestContactInfoTooltip"
         :on-file-upload="onFileUpload"
         :on-send="onSendReply"
         :conversation-type="conversationType"
@@ -1529,6 +1589,7 @@ export default {
         @select-content-template="openContentTemplateModal"
         @toggle-insert-article="toggleInsertArticle"
         @toggle-quoted-reply="toggleQuotedReply"
+        @request-contact-info="requestContactInfo"
       />
     </Transition>
 
@@ -1536,6 +1597,7 @@ export default {
       :inbox-id="inbox.id"
       :show="showWhatsAppTemplatesModal"
       :send-rendered-content="isAPIInbox"
+      :request-contact-info-only="requestContactInfoTemplatesOnly"
       @close="hideWhatsappTemplatesModal"
       @on-send="onSendWhatsAppReply"
       @cancel="hideWhatsappTemplatesModal"

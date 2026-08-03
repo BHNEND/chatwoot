@@ -73,7 +73,7 @@ class Whatsapp::IncomingMessageBaseService
 
     process_in_reply_to(message)
 
-    message_type == 'contacts' ? create_contact_messages(message) : create_regular_message(message)
+    message_type == 'contacts' ? create_contact_messages(process_contact_info_response(message)) : create_regular_message(message)
   end
 
   # WhatsApp delivers messages it cannot render (e.g. coexistence companion-device syncs that
