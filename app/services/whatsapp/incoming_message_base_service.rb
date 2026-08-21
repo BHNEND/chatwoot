@@ -194,13 +194,13 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def attach_contact(contact)
-    phones = contact[:phones]
-    phones = [{ phone: 'Phone number is not available' }] if phones.blank?
+    phones = contact[:phones].presence || [{ phone: 'Phone number is not available' }]
 
     name_info = contact['name'] || {}
     contact_meta = {
       firstName: name_info['first_name'],
-      lastName: name_info['last_name']
+      lastName: name_info['last_name'],
+      isContactInfoResponse: contact['origin'] == 'contact_request'
     }.compact
 
     phones.each do |phone|
