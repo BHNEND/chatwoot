@@ -15,6 +15,8 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     return send_session_message if message.conversation.can_reply?
 
     message.update!(status: :failed, external_error: I18n.t('errors.whatsapp.message_outside_messaging_window'))
+  rescue CustomExceptions::WhatsappContactInfoRequestError => e
+    message.update!(status: :failed, external_error: e.message)
   end
 
   def send_contact_info_request
@@ -23,8 +25,6 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     ).ensure_available!
     message_id = channel.send_contact_info_request(message.conversation.contact_inbox.source_id, message)
     message.update!(source_id: message_id) if message_id.present?
-  rescue CustomExceptions::WhatsappContactInfoRequestError => e
-    message.update!(status: :failed, external_error: e.message)
   end
 
   def send_template_message
@@ -48,8 +48,6 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
                                          parameters: processed_parameters
                                        }, message)
     message.update!(source_id: message_id) if message_id.present?
-  rescue CustomExceptions::WhatsappContactInfoRequestError => e
-    message.update!(status: :failed, external_error: e.message)
   end
 
   def send_session_message

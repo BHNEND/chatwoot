@@ -1,5 +1,5 @@
 class Whatsapp::ContactInfoResponseService
-  pattr_initialize [:conversation!, :contact_inbox!, :message_payload!]
+  pattr_initialize [:contact_inbox!, :message_payload!]
 
   def perform
     return unless processable_response?
@@ -50,18 +50,21 @@ class Whatsapp::ContactInfoResponseService
     source_id = message_payload[:id].to_s
     return false if source_id.blank?
 
-    conversation.messages.outgoing.exists?(
+    contact_info_request_messages.exists?(
       ["(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'response_source_id' = ?", source_id]
     )
   end
 
   def pending_request_message
-    conversation.messages.outgoing
-                .where.not(status: :failed)
-                .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'type' = ?", 'request')
-                .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'state' = ?", 'pending')
-                .order(created_at: :desc, id: :desc)
-                .first
+    contact_info_request_messages.where.not(status: :failed)
+                                 .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'type' = ?", 'request')
+                                 .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'state' = ?", 'pending')
+                                 .order(created_at: :desc, id: :desc)
+                                 .first
+  end
+
+  def contact_info_request_messages
+    Message.outgoing.where(conversation_id: contact_inbox.conversations.select(:id))
   end
 
   def pending_request?(message)

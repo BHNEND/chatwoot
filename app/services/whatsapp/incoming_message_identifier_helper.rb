@@ -96,7 +96,7 @@ module Whatsapp::IncomingMessageIdentifierHelper
   end
 
   def process_contact_info_response(message)
-    Whatsapp::ContactInfoResponseService.new(conversation: @conversation, contact_inbox: @contact_inbox, message_payload: message).perform
+    Whatsapp::ContactInfoResponseService.new(contact_inbox: @contact_inbox, message_payload: message).perform
     message
   end
 

@@ -76,10 +76,10 @@ class Whatsapp::ContactInfoRequestEligibilityService
   end
 
   def pending_request?
-    scope = conversation.messages.outgoing
-                        .where.not(status: :failed)
-                        .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'type' = ?", 'request')
-                        .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'state' = ?", 'pending')
+    scope = Message.outgoing.where(conversation_id: conversation.contact_inbox.conversations.select(:id))
+                   .where.not(status: :failed)
+                   .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'type' = ?", 'request')
+                   .where("(content_attributes #>> '{}')::jsonb -> 'whatsapp_contact_info' ->> 'state' = ?", 'pending')
     scope = scope.where.not(id: message.id) if message&.persisted?
     scope.exists?
   end
