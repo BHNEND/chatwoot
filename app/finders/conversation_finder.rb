@@ -210,8 +210,8 @@ class ConversationFinder
 
   def conversations_base_query
     @conversations.includes(
-      :taggings, :team, :contact_inbox, { inbox: :channel }, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }
-    )
+      :taggings, :team, :contact_inbox, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }
+    ).preload(inbox: :channel)
   end
 
   def conversations

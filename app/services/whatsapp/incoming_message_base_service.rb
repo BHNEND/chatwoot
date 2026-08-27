@@ -199,9 +199,9 @@ class Whatsapp::IncomingMessageBaseService
     name_info = contact['name'] || {}
     contact_meta = {
       firstName: name_info['first_name'],
-      lastName: name_info['last_name'],
-      isContactInfoResponse: contact['origin'] == 'contact_request'
+      lastName: name_info['last_name']
     }.compact
+    contact_meta[:isContactInfoResponse] = true if contact['origin'] == 'contact_request'
 
     phones.each do |phone|
       @message.attachments.new(

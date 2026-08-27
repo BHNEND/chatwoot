@@ -2,8 +2,8 @@ class Api::V1::Accounts::Contacts::ConversationsController < Api::V1::Accounts::
   def index
     # Start with all conversations for this contact
     conversations = Current.account.conversations.includes(
-      :assignee, :contact, :taggings, :contact_inbox, inbox: :channel
-    ).where(contact_id: @contact.id)
+      :assignee, :contact, :taggings, :contact_inbox
+    ).preload(inbox: :channel).where(contact_id: @contact.id)
 
     # Apply permission-based filtering using the existing service
     conversations = Conversations::PermissionFilterService.new(
