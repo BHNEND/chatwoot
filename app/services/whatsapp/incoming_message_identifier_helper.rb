@@ -96,7 +96,12 @@ module Whatsapp::IncomingMessageIdentifierHelper
   end
 
   def process_contact_info_response(message)
-    Whatsapp::ContactInfoResponseService.new(contact_inbox: @contact_inbox, message_payload: message).perform
+    contact_params = @processed_params[:contacts]&.first || {}
+    response_payload = message.merge(
+      from_user_id: message[:from_user_id].presence || contact_params[:user_id],
+      from_parent_user_id: message[:from_parent_user_id].presence || contact_params[:parent_user_id]
+    )
+    Whatsapp::ContactInfoResponseService.new(contact_inbox: @contact_inbox, message_payload: response_payload).perform
     message
   end
 
