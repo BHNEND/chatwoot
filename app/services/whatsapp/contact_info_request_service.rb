@@ -2,7 +2,7 @@ class Whatsapp::ContactInfoRequestService
   pattr_initialize [:conversation!, :sender!]
 
   def perform
-    conversation.with_lock do
+    conversation.contact_inbox.with_lock do
       Whatsapp::ContactInfoRequestEligibilityService.new(conversation: conversation, delivery_mode: :interactive).ensure_available!
 
       Messages::MessageBuilder.new(sender, conversation, message_params).perform

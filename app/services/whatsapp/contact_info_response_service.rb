@@ -39,11 +39,17 @@ class Whatsapp::ContactInfoResponseService
   def matching_bsuid?
     regular_bsuid = message_payload[:from_user_id].to_s
     return false if regular_bsuid.blank?
-    return false unless contact_inbox.inbox_id == inbox.id && contact_inbox.contact_id == contact.id
-    return false unless inbox.contact_inboxes.exists?(contact: contact, source_id: regular_bsuid)
+    return false unless matching_contact_inboxes.exists?(source_id: regular_bsuid)
 
-    sender_ids = [message_payload[:from_parent_user_id], regular_bsuid].compact_blank.map(&:to_s)
     sender_ids.include?(contact_inbox.source_id)
+  end
+
+  def sender_ids
+    [message_payload[:from_user_id], message_payload[:from_parent_user_id]].compact_blank.map(&:to_s).uniq
+  end
+
+  def matching_contact_inboxes
+    inbox.contact_inboxes.where(contact: contact, source_id: sender_ids)
   end
 
   def response_already_processed?
@@ -64,7 +70,9 @@ class Whatsapp::ContactInfoResponseService
   end
 
   def contact_info_request_messages
-    Message.outgoing.where(conversation_id: contact_inbox.conversations.select(:id))
+    Message.outgoing.where(
+      conversation_id: Conversation.where(contact_inbox: matching_contact_inboxes).select(:id)
+    )
   end
 
   def pending_request?(message)
@@ -74,7 +82,7 @@ class Whatsapp::ContactInfoResponseService
 
   def response_predates_request?(request_message)
     response_timestamp = message_payload[:timestamp].to_i
-    response_timestamp.positive? && Time.zone.at(response_timestamp) < request_message.created_at
+    response_timestamp.positive? && response_timestamp < request_message.created_at.to_i
   end
 
   def shared_phone_identity

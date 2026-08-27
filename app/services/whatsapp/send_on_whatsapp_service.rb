@@ -69,7 +69,7 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     )
     return unless eligibility.request_contact_info_template?(template_params)
 
-    message.conversation.with_lock do
+    message.conversation.contact_inbox.with_lock do
       eligibility.ensure_available!
       content_attributes = message.content_attributes.deep_dup
       content_attributes['whatsapp_contact_info'] = { 'type' => 'request', 'state' => 'pending', 'delivery_mode' => 'template' }

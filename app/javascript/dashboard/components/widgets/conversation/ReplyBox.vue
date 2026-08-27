@@ -188,6 +188,7 @@ export default {
     },
     showRequestContactInfo() {
       return (
+        !this.currentContact.phone_number &&
         (this.contactInfoRequestCapability.available ||
           this.contactInfoRequestCapability.reason === 'pending_request') &&
         !this.isOnPrivateNote
