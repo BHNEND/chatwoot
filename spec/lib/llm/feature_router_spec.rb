@@ -61,6 +61,32 @@ RSpec.describe Llm::FeatureRouter do
       )
     end
 
+    it 'uses the installation model for the editor on self-hosted installations' do
+      allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(false)
+      InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_MODEL').update!(value: 'gpt-5.6-luna')
+
+      resolved = described_class.resolve(feature: 'editor', account: account)
+
+      expect(resolved).to eq(
+        feature: 'editor',
+        provider: 'openai',
+        model: 'gpt-5.6-luna',
+        source: :installation_override
+      )
+    end
+
+    it 'does not use the installation editor model on Chatwoot Cloud' do
+      allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
+      InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_MODEL').update!(value: 'gpt-5.6-luna')
+
+      resolved = described_class.resolve(feature: 'editor', account: account)
+
+      expect(resolved).to include(
+        model: 'gpt-4.1-mini',
+        source: :default
+      )
+    end
+
     it 'keeps the OpenAI provider for a custom installation model' do
       allow(ChatwootApp).to receive(:self_hosted_enterprise?).and_return(true)
       InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_MODEL').update!(value: 'custom-openai-model')

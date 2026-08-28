@@ -37,8 +37,9 @@ module Llm::FeatureRouter
     end
 
     def installation_model_override(feature_key)
-      return unless feature_key == 'conversation_completion'
-      return unless ChatwootApp.self_hosted_enterprise?
+      return unless %w[conversation_completion editor].include?(feature_key)
+      return if feature_key == 'editor' && ChatwootApp.chatwoot_cloud?
+      return if feature_key == 'conversation_completion' && !ChatwootApp.self_hosted_enterprise?
 
       InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence
     end
