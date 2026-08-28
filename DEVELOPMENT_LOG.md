@@ -31,3 +31,4 @@
 - 针对远程构建期间 SSH 连接断开的问题，为 GitHub Actions 部署连接增加连接超时、服务端保活和 TCP 保活参数，避免长时间构建时连接被中途回收。
 - 使用 GitHub Actions 运行 `33196169490` 完成自建镜像部署：`chatwoot-custom:develop` 构建成功，Rails、Sidekiq、PostgreSQL、Redis 均正常运行，API 健康检查通过。
 - 扩展 Captain 编辑器模型白名单，加入 GPT-5.3 Chat、GPT-5.4 系列、GPT-5.5 系列及可通过 OpenAI 兼容接口调用的 `gpt-5.6-luna`，用于客服消息润色；新模型不改变默认模型。
+- 使用 GitHub Actions 运行 `33202175285` 完成模型配置部署，镜像构建和四个 Chatwoot 服务健康检查均成功。
