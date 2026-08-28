@@ -92,6 +92,6 @@ jobs:
             test -n "$container_id"
             test "$(docker inspect -f '{{.State.Running}}' "$container_id")" = true
           done
-          curl --fail --silent --show-error --head --max-time 30 http://127.0.0.1:3001/api
+          curl --fail --silent --show-error --head --max-time 30 http://127.0.0.1:3100/api
           docker compose -f docker-compose.production.yaml ps
           REMOTE
