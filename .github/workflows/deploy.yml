@@ -76,8 +76,13 @@ jobs:
           test -f .env
           docker compose -f docker-compose.production.yaml config >/dev/null
           docker compose -f docker-compose.production.yaml pull
-          docker compose -f docker-compose.production.yaml run --rm rails bundle exec rails db:chatwoot_prepare
+          docker compose -f docker-compose.production.yaml run --rm -T --interactive=false rails bundle exec rails db:chatwoot_prepare
           docker compose -f docker-compose.production.yaml up -d --remove-orphans
+          for service in rails sidekiq; do
+            container_id=$(docker compose -f docker-compose.production.yaml ps -q "$service")
+            test -n "$container_id"
+            test "$(docker inspect -f '{{.State.Running}}' "$container_id")" = true
+          done
           curl --fail --silent --show-error --head --max-time 30 http://127.0.0.1:3000/api
           docker compose -f docker-compose.production.yaml ps
           REMOTE
