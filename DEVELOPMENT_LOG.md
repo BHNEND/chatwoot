@@ -22,3 +22,4 @@
 - 端口切换后 Rails/Sidekiq 已成功启动；健康检查因应用启动需要时间而过早失败，改为最多等待 60 秒重试。
 - 使用本机 `13100` 端口后部署成功（运行编号 `33190497332`）；Rails、Sidekiq、PostgreSQL、Redis 均启动，API 健康检查通过。
 - 发现 Compose 锚点 `base` 被错误实例化为已停止容器；改为 `x-base` 扩展字段，避免生成多余的 `chatwoot-base-1` 服务。
+- 复核发现 `x-base` 仍放在 `services` 内并被实例化为 `chatwoot-x-base-1`；将扩展字段移到 Compose 顶层，彻底移除多余容器。
