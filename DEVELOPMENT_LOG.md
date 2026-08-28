@@ -25,3 +25,7 @@
 - 复核发现 `x-base` 仍放在 `services` 内并被实例化为 `chatwoot-x-base-1`；将扩展字段移到 Compose 顶层，彻底移除多余容器。
 - 将网页聊天组件的 `disableBranding` 固定为开启，仅移除访客聊天窗口的品牌区，不修改管理后台和邮件品牌。
 - 将生产 Compose 改为从仓库内 `docker/Dockerfile` 构建 `chatwoot-custom:develop` 镜像；部署流程改为构建自有镜像后启动。
+
+## 2026-08-29
+
+- 针对远程构建期间 SSH 连接断开的问题，为 GitHub Actions 部署连接增加连接超时、服务端保活和 TCP 保活参数，避免长时间构建时连接被中途回收。
