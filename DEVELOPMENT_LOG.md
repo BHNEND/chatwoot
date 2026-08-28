@@ -29,3 +29,4 @@
 ## 2026-08-29
 
 - 针对远程构建期间 SSH 连接断开的问题，为 GitHub Actions 部署连接增加连接超时、服务端保活和 TCP 保活参数，避免长时间构建时连接被中途回收。
+- 使用 GitHub Actions 运行 `33196169490` 完成自建镜像部署：`chatwoot-custom:develop` 构建成功，Rails、Sidekiq、PostgreSQL、Redis 均正常运行，API 健康检查通过。
