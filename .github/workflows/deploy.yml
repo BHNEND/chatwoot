@@ -77,6 +77,7 @@ jobs:
           docker compose -f docker-compose.production.yaml config >/dev/null
           docker compose -f docker-compose.production.yaml pull
           docker compose -f docker-compose.production.yaml run --rm -T --interactive=false rails bundle exec rails db:chatwoot_prepare
+          docker compose -f docker-compose.production.yaml down --remove-orphans
           docker compose -f docker-compose.production.yaml up -d --remove-orphans
           for service in rails sidekiq; do
             container_id=$(docker compose -f docker-compose.production.yaml ps -q "$service")
