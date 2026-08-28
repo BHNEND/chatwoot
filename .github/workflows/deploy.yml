@@ -46,7 +46,14 @@ jobs:
             "export DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") REPO_URL=$(printf '%q' "$REPO_URL"); bash -s" <<'REMOTE'
           set -euo pipefail
 
+          git config --global --add safe.directory "$DEPLOY_PATH"
+
           if [ -d "$DEPLOY_PATH/.git" ]; then
+            if git -C "$DEPLOY_PATH" remote get-url origin >/dev/null 2>&1; then
+              git -C "$DEPLOY_PATH" remote set-url origin "$REPO_URL"
+            else
+              git -C "$DEPLOY_PATH" remote add origin "$REPO_URL"
+            fi
             git -C "$DEPLOY_PATH" fetch --depth=1 origin develop
             git -C "$DEPLOY_PATH" reset --hard FETCH_HEAD
           elif [ -e "$DEPLOY_PATH" ]; then
