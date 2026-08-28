@@ -23,3 +23,5 @@
 - 使用本机 `13100` 端口后部署成功（运行编号 `33190497332`）；Rails、Sidekiq、PostgreSQL、Redis 均启动，API 健康检查通过。
 - 发现 Compose 锚点 `base` 被错误实例化为已停止容器；改为 `x-base` 扩展字段，避免生成多余的 `chatwoot-base-1` 服务。
 - 复核发现 `x-base` 仍放在 `services` 内并被实例化为 `chatwoot-x-base-1`；将扩展字段移到 Compose 顶层，彻底移除多余容器。
+- 将网页聊天组件的 `disableBranding` 固定为开启，仅移除访客聊天窗口的品牌区，不修改管理后台和邮件品牌。
+- 将生产 Compose 改为从仓库内 `docker/Dockerfile` 构建 `chatwoot-custom:develop` 镜像；部署流程改为构建自有镜像后启动。

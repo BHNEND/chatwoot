@@ -10,7 +10,7 @@ jobs:
   deploy:
     name: 部署到服务器
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: 准备 SSH 私钥
@@ -75,7 +75,8 @@ jobs:
           cd "$DEPLOY_PATH"
           test -f .env
           docker compose -f docker-compose.production.yaml config >/dev/null
-          docker compose -f docker-compose.production.yaml pull
+          docker compose -f docker-compose.production.yaml pull postgres redis
+          docker compose -f docker-compose.production.yaml build --pull rails sidekiq
           docker compose -f docker-compose.production.yaml run --rm -T --interactive=false rails bundle exec rails db:chatwoot_prepare
           docker compose -f docker-compose.production.yaml down --remove-orphans
           echo '占用 3000 端口的 Docker 容器：'
