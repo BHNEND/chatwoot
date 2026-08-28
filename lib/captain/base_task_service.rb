@@ -60,6 +60,7 @@ class Captain::BaseTaskService
     return model if feature.blank?
 
     route = Llm::FeatureRouter.resolve(feature: feature, account: account)
+    @resolved_model_source = route[:source]
     return model if model.present? && route[:source] == :default
 
     route[:model]
@@ -83,7 +84,11 @@ class Captain::BaseTaskService
   end
 
   def build_chat(context, model:, messages:, schema: nil, tools: [])
-    chat = context.chat(model: model)
+    chat_options = { model: model }
+    if @resolved_model_source == :installation_override
+      chat_options.merge!(provider: :openai, assume_model_exists: true)
+    end
+    chat = context.chat(**chat_options)
     system_msg = messages.find { |m| m[:role] == 'system' }
     chat.with_instructions(system_msg[:content]) if system_msg
     chat.with_schema(schema) if schema

@@ -179,6 +179,19 @@ RSpec.describe Captain::BaseTaskService do
       service.send(:make_api_call, feature: 'editor', messages: messages)
     end
 
+    it 'passes a custom self-hosted installation model to RubyLLM explicitly' do
+      allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(false)
+      InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_MODEL').update!(value: 'gpt-5.6-luna')
+
+      expect(mock_context).to receive(:chat).with(
+        model: 'gpt-5.6-luna',
+        provider: :openai,
+        assume_model_exists: true
+      ).and_return(mock_chat)
+
+      service.send(:make_api_call, feature: 'editor', messages: messages)
+    end
+
     it 'uses the supplied model as a feature fallback when there is no account override' do
       expect(mock_context).to receive(:chat).with(model: 'gpt-5.2').and_return(mock_chat)
 
