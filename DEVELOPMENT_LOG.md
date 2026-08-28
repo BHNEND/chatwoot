@@ -7,4 +7,5 @@
 - 确认首次启动前执行 `docker compose run --rm rails bundle exec rails db:chatwoot_prepare`，升级镜像后也需要执行数据库准备命令。
 - 使用已登录的 GitHub 账号 `BHNEND` 创建上游 `chatwoot/chatwoot` 的派生仓库：<https://github.com/BHNEND/chatwoot>。
 - 将派生仓库的 `develop` 分支克隆到本地工作目录；尚未配置服务器参数，也未触发部署流程。
-
+- 将生产 Compose 的 PostgreSQL 密码改为从服务器 `.env` 读取。
+- 新增手动触发的 GitHub Actions 部署流程：同步源码、校验 `.env` 和 Compose、执行数据库准备、启动服务并检查本机 API。

@@ -1,0 +1,68 @@
+name: 部署 Chatwoot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: 部署到服务器
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 准备 SSH 私钥
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_SSH_KEY"
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/chatwoot_deploy"
+          chmod 600 "$HOME/.ssh/chatwoot_deploy"
+
+      - name: 部署到服务器
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REPO_URL: https://github.com/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_PATH"
+          test -n "$DEPLOY_PORT"
+          test -n "$DEPLOY_USER"
+
+          ssh \
+            -i "$HOME/.ssh/chatwoot_deploy" \
+            -p "$DEPLOY_PORT" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "export DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") REPO_URL=$(printf '%q' "$REPO_URL"); bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          if [ -d "$DEPLOY_PATH/.git" ]; then
+            git -C "$DEPLOY_PATH" fetch --depth=1 origin develop
+            git -C "$DEPLOY_PATH" reset --hard FETCH_HEAD
+          elif [ -e "$DEPLOY_PATH" ] && [ -n "$(find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+            echo "部署目录已存在且不是 Git 仓库：$DEPLOY_PATH" >&2
+            exit 1
+          else
+            mkdir -p "$(dirname "$DEPLOY_PATH")"
+            git clone --depth=1 --branch develop "$REPO_URL" "$DEPLOY_PATH"
+          fi
+
+          cd "$DEPLOY_PATH"
+          test -f .env
+          docker compose -f docker-compose.production.yaml config >/dev/null
+          docker compose -f docker-compose.production.yaml pull
+          docker compose -f docker-compose.production.yaml run --rm rails bundle exec rails db:chatwoot_prepare
+          docker compose -f docker-compose.production.yaml up -d --remove-orphans
+          curl --fail --silent --show-error --head --max-time 30 http://127.0.0.1:3000/api
+          docker compose -f docker-compose.production.yaml ps
+          REMOTE
