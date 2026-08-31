@@ -1,10 +1,5 @@
-version: '3'
-
 x-base: &base
-  build:
-    context: .
-    dockerfile: docker/Dockerfile
-  image: chatwoot-custom:develop
+  image: ghcr.io/bhnend/chatwoot:develop
   env_file: .env ## Change this file for customized env variables
   volumes:
     - storage_data:/app/storage

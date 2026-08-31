@@ -36,3 +36,8 @@
 - 使用 GitHub Actions 运行 `33203317053` 完成该路由修复部署，镜像构建和服务健康检查均成功。
 - 修复 RubyLLM 拒绝自定义模型的问题：对自托管全局模型显式指定 OpenAI 提供方并启用 `assume_model_exists`，允许 `gpt-5.6-luna` 等网关自定义模型继续走标准 OpenAI 兼容接口；补充请求参数测试。
 - 使用 GitHub Actions 运行 `33204081857` 完成自定义模型调用修复部署，镜像构建和服务健康检查均成功。
+
+## 2026-08-31
+
+- 将生产部署改为由 GitHub Actions 构建 `ghcr.io/bhnend/chatwoot:develop` 并推送到 GitHub 镜像仓库；服务器仅拉取镜像、执行数据库升级并替换应用容器，不再克隆源码或构建镜像。
+- 优化容器更新过程，不再主动停止 PostgreSQL 和 Redis；新应用容器健康检查通过后，按 Git 跟踪清单移除服务器部署目录中的旧源码，保留 `.env`、生产编排文件和 Docker 数据卷。

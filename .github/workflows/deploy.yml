@@ -5,14 +5,42 @@ on:
 
 permissions:
   contents: read
+  packages: write
+
+env:
+  IMAGE_REF: ghcr.io/bhnend/chatwoot:develop
 
 jobs:
   deploy:
-    name: 部署到服务器
+    name: 构建镜像并部署到服务器
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
+      - name: 获取源码
+        uses: actions/checkout@v4
+
+      - name: 准备 Docker 构建环境
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GitHub 镜像仓库
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE_REF }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: 准备 SSH 私钥
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -29,7 +57,8 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          REPO_URL: https://github.com/${{ github.repository }}.git
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         run: |
           set -euo pipefail
           test -n "$DEPLOY_HOST"
@@ -37,66 +66,45 @@ jobs:
           test -n "$DEPLOY_PORT"
           test -n "$DEPLOY_USER"
 
-          ssh \
-            -i "$HOME/.ssh/chatwoot_deploy" \
-            -p "$DEPLOY_PORT" \
-            -o ConnectTimeout=30 \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=120 \
-            -o TCPKeepAlive=yes \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            "export DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") REPO_URL=$(printf '%q' "$REPO_URL"); bash -s" <<'REMOTE'
+          SSH_OPTIONS=(
+            -i "$HOME/.ssh/chatwoot_deploy"
+            -p "$DEPLOY_PORT"
+            -o ConnectTimeout=30
+            -o ServerAliveInterval=30
+            -o ServerAliveCountMax=120
+            -o TCPKeepAlive=yes
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+          )
+          REMOTE="$DEPLOY_USER@$DEPLOY_HOST"
+          REMOTE_PATH=$(printf '%q' "$DEPLOY_PATH")
+          REMOTE_COMPOSE=$(printf '%q' "$DEPLOY_PATH/docker-compose.production.yaml.next")
+
+          ssh "${SSH_OPTIONS[@]}" "$REMOTE" \
+            "install -d $REMOTE_PATH && test -f $REMOTE_PATH/.env && cat > $REMOTE_COMPOSE" \
+            < docker-compose.production.yaml
+
+          printf '%s' "$GHCR_TOKEN" | ssh "${SSH_OPTIONS[@]}" "$REMOTE" \
+            "docker login ghcr.io --username $(printf '%q' "$GHCR_USER") --password-stdin"
+
+          ssh "${SSH_OPTIONS[@]}" "$REMOTE" \
+            "export DEPLOY_PATH=$REMOTE_PATH; bash -s" <<'REMOTE_SCRIPT'
           set -euo pipefail
 
-          git config --global --add safe.directory "$DEPLOY_PATH"
-
-          if [ -d "$DEPLOY_PATH/.git" ]; then
-            if git -C "$DEPLOY_PATH" remote get-url origin >/dev/null 2>&1; then
-              git -C "$DEPLOY_PATH" remote set-url origin "$REPO_URL"
-            else
-              git -C "$DEPLOY_PATH" remote add origin "$REPO_URL"
-            fi
-            git -C "$DEPLOY_PATH" fetch --depth=1 origin develop
-            git -C "$DEPLOY_PATH" reset --hard FETCH_HEAD
-          elif [ -e "$DEPLOY_PATH" ]; then
-            test -d "$DEPLOY_PATH"
-            test -f "$DEPLOY_PATH/.env"
-            git -C "$DEPLOY_PATH" init
-            if git -C "$DEPLOY_PATH" remote get-url origin >/dev/null 2>&1; then
-              git -C "$DEPLOY_PATH" remote set-url origin "$REPO_URL"
-            else
-              git -C "$DEPLOY_PATH" remote add origin "$REPO_URL"
-            fi
-            git -C "$DEPLOY_PATH" fetch --depth=1 origin develop
-            git -C "$DEPLOY_PATH" checkout -B develop FETCH_HEAD
-          else
-            mkdir -p "$(dirname "$DEPLOY_PATH")"
-            git clone --depth=1 --branch develop "$REPO_URL" "$DEPLOY_PATH"
-          fi
-
           cd "$DEPLOY_PATH"
-          test -f .env
+          mv docker-compose.production.yaml.next docker-compose.production.yaml
           docker compose -f docker-compose.production.yaml config >/dev/null
-          docker compose -f docker-compose.production.yaml pull postgres redis
-          docker compose -f docker-compose.production.yaml build --pull rails sidekiq
+          docker compose -f docker-compose.production.yaml pull
+          docker logout ghcr.io
           docker compose -f docker-compose.production.yaml run --rm -T --interactive=false rails bundle exec rails db:chatwoot_prepare
-          docker compose -f docker-compose.production.yaml down --remove-orphans
-          echo '占用 3000 端口的 Docker 容器：'
-          docker ps --filter publish=3000 --format 'table {{.ID}}\t{{.Names}}\t{{.Ports}}'
-          echo '占用 3000 端口的主机进程：'
-          ss -ltnp | awk '$4 ~ /:3000$/ { print }' || true
-          echo '占用 3001 端口的 Docker 容器：'
-          docker ps --filter publish=3001 --format 'table {{.ID}}\t{{.Names}}\t{{.Ports}}'
-          echo '占用 3001 端口的主机进程：'
-          ss -ltnp | awk '$4 ~ /:3001$/ { print }' || true
           docker compose -f docker-compose.production.yaml up -d --remove-orphans
+
           for service in rails sidekiq; do
             container_id=$(docker compose -f docker-compose.production.yaml ps -q "$service")
             test -n "$container_id"
             test "$(docker inspect -f '{{.State.Running}}' "$container_id")" = true
           done
+
           for attempt in $(seq 1 12); do
             if curl --fail --silent --show-error --head --max-time 5 http://127.0.0.1:13100/api; then
               break
@@ -107,5 +115,16 @@ jobs:
             fi
             sleep 5
           done
+
+          if [ -d .git ]; then
+            while IFS= read -r -d '' tracked_file; do
+              if [ "$tracked_file" != 'docker-compose.production.yaml' ]; then
+                rm -f -- "$tracked_file"
+              fi
+            done < <(git ls-files -z)
+            rm -rf .git
+            find . -mindepth 1 -depth -type d -empty -delete
+          fi
+
           docker compose -f docker-compose.production.yaml ps
-          REMOTE
+          REMOTE_SCRIPT
