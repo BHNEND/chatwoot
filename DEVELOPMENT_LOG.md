@@ -41,3 +41,4 @@
 
 - 将生产部署改为由 GitHub Actions 构建 `ghcr.io/bhnend/chatwoot:develop` 并推送到 GitHub 镜像仓库；服务器仅拉取镜像、执行数据库升级并替换应用容器，不再克隆源码或构建镜像。
 - 优化容器更新过程，不再主动停止 PostgreSQL 和 Redis；新应用容器健康检查通过后，按 Git 跟踪清单移除服务器部署目录中的旧源码，保留 `.env`、生产编排文件和 Docker 数据卷。
+- 使用 GitHub Actions 运行 `33390119859` 完成新部署链路的首次验证：镜像在 GitHub 构建并推送成功，服务器仅用新镜像重建 Rails 和 Sidekiq，PostgreSQL、Redis 保持连续运行，API 健康检查和旧源码清理均成功。
